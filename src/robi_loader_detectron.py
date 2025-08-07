@@ -75,11 +75,14 @@ def robiLoader(obj_name,class_id,DataPath):
                 continue
 
             contour = max(contours, key=cv2.contourArea)  # Get the largest contour (avoids noise)
+            if contour.shape[0]<3:
+                continue #skip if less than 3 points (invalid polygon)
             x, y, w, h = cv2.boundingRect(contour)
 
             segmentation = [contour.flatten().tolist()]  # Flatten the contour to match the expected format
 
-            ann = {                'bbox': [x, y, w, h],
+            ann = {                
+                'bbox': [x, y, w, h],
                 'bbox_mode': BoxMode.XYWH_ABS,
                 'segmentation': segmentation,
                 'category_id': class_id,

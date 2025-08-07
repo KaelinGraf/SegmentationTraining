@@ -20,7 +20,7 @@ ROBI_CLASSES = ["Chrome_screw_synthetic","DIN_connector_synthetic","DSub_connect
 CLASS_TO_ID = {cls: idx for idx, cls in enumerate(ROBI_CLASSES)}
 
 DataPath = "/home/kaelin/Documents/BinPicking/SegmentationModel/Data/"
-pickle_file = "SegmentationModel/Data/robi_dataset.pkl"
+pickle_file = os.path.join("Data/robi_dataset.pkl")
 
 # def registerROBIDataset(DataPath, CLASS_TO_ID):
 #     for class_name in ROBI_CLASSES:
@@ -47,12 +47,22 @@ def main():
 
     #load pre-processed pickle
     all_datasets = loadPickle(pickle_file)
+    
+    training_datasets = []
+    if args.training_class == "all":
+        for data_class in ROBI_CLASSES:
+            print(data_class)
+            single_dataset_to_train = all_datasets[data_class]
+            DatasetCatalog.register(f"robi_{data_class}_train",lambda:single_dataset_to_train)
+            MetadataCatalog.get(f"robi_{data_class}_train").set(thing_classes=ROBI_CLASSES)
+            training_datasets.append(f"robi_{data_class}_train")
+    else:
+        single_dataset_to_train = all_datasets[args.training_class]
 
-    single_dataset_to_train = all_datasets[args.training_class]
-
-    #registerROBISingleClassDataset(args.data_path, CLASS_TO_ID, args.training_class)
-    DatasetCatalog.register(f"robi_{args.training_class}_train",lambda: single_dataset_to_train)
-    robi_meta=MetadataCatalog.get(f"robi_{args.training_class}_train").set(thing_classes=ROBI_CLASSES)
+        #registerROBISingleClassDataset(args.data_path, CLASS_TO_ID, args.training_class)
+        DatasetCatalog.register(f"robi_{args.training_class}_train",lambda: single_dataset_to_train)
+        robi_meta=MetadataCatalog.get(f"robi_{args.training_class}_train").set(thing_classes=ROBI_CLASSES)
+        training_datasets.append[f"robi_{args.training_class}_train"]
 
     # dataset_dicts = DatasetCatalog.get(f"robi_{args.training_class}_train")
     if args.test_dataset_loader:
@@ -72,7 +82,7 @@ def main():
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg.SOLVER.AMP.ENABLED = True 
-    cfg.DATASETS.TRAIN = (f"robi_{args.training_class}_train",)
+    cfg.DATASETS.TRAIN = (training_datasets)
     cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
@@ -95,9 +105,7 @@ def main():
 def loadPickle(pickle_file):
     with open(pickle_file,'rb') as f:
         dataset_dicts = pickle.load(f)
-    if type(dataset_dicts) is not list:
-        raise ValueError("Pickle file does not contain a list")
-    elif type(dataset_dicts[0]) is not dict:
+    if type(dataset_dicts) is not dict:
         raise ValueError("Pickle file does not contain a list of dictionaries")
     return dataset_dicts
 
@@ -114,7 +122,7 @@ def parser_setup(parser):
     parser.add_argument(
         "--training_class",
         type=str,
-        default="Eye_bolt_synthetic",
+        default="all",
         help="Class to train on"
     )
     parser.add_argument(
