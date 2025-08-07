@@ -7,6 +7,7 @@ import cv2,json,random,os
 from detectron2.utils.visualizer import Visualizer
 import argparse
 import tensorboard
+import pickle
 
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.engine import DefaultTrainer, DefaultPredictor
@@ -19,19 +20,20 @@ ROBI_CLASSES = ["Chrome_screw_synthetic","DIN_connector_synthetic","DSub_connect
 CLASS_TO_ID = {cls: idx for idx, cls in enumerate(ROBI_CLASSES)}
 
 DataPath = "/home/kaelin/Documents/BinPicking/SegmentationModel/Data/"
+pickle_file = "SegmentationModel/Data/robi_dataset.pkl"
 
-def registerROBIDataset(DataPath, CLASS_TO_ID):
-    for class_name in ROBI_CLASSES:
-        dataset_name = f"robi_{class_name}_train"
+# def registerROBIDataset(DataPath, CLASS_TO_ID):
+#     for class_name in ROBI_CLASSES:
+#         dataset_name = f"robi_{class_name}_train"
     
-    # Use a lambda function to pass arguments to the data loader
-        DatasetCatalog.register(dataset_name, lambda d=class_name: robi_loader_detectron.robiLoader(d, CLASS_TO_ID[d], DataPath=DataPath))
-        MetadataCatalog.get(dataset_name).set(thing_classes=ROBI_CLASSES)
+#     # Use a lambda function to pass arguments to the data loader
+#         DatasetCatalog.register(dataset_name, lambda d=class_name: robi_loader_detectron.robiLoader(d, CLASS_TO_ID[d], DataPath=DataPath))
+#         MetadataCatalog.get(dataset_name).set(thing_classes=ROBI_CLASSES)
 
-def registerROBISingleClassDataset(DataPath, CLASS_TO_ID, class_name):
-    dataset_name = f"robi_{class_name}_train"
-    DatasetCatalog.register(dataset_name, lambda d=class_name: robi_loader_detectron.robiLoader(d, CLASS_TO_ID[d], DataPath=DataPath))
-    MetadataCatalog.get(dataset_name).set(thing_classes=ROBI_CLASSES)
+# def registerROBISingleClassDataset(DataPath, CLASS_TO_ID, class_name):
+#     dataset_name = f"robi_{class_name}_train"
+#     DatasetCatalog.register(dataset_name, lambda d=class_name: robi_loader_detectron.robiLoader(d, CLASS_TO_ID[d], DataPath=DataPath))
+#     MetadataCatalog.get(dataset_name).set(thing_classes=ROBI_CLASSES)
 
 def main():
     
@@ -43,11 +45,18 @@ def main():
     parser_setup(parser)
     args=parser.parse_args()
 
-    registerROBISingleClassDataset(args.data_path, CLASS_TO_ID, args.training_class)
+    #load pre-processed pickle
+    all_datasets = loadPickle(pickle_file)
+
+    single_dataset_to_train = all_datasets[args.training_class]
+
+    #registerROBISingleClassDataset(args.data_path, CLASS_TO_ID, args.training_class)
+    DatasetCatalog.register(f"robi_{args.training_class}_train",lambda: single_dataset_to_train)
     robi_meta=MetadataCatalog.get(f"robi_{args.training_class}_train").set(thing_classes=ROBI_CLASSES)
 
-    dataset_dicts = DatasetCatalog.get(f"robi_{args.training_class}_train")
+    # dataset_dicts = DatasetCatalog.get(f"robi_{args.training_class}_train")
     if args.test_dataset_loader:
+        dataset_dicts = DatasetCatalog.get(f"robi_{args.training_class}_train")
         for d in random.sample(dataset_dicts, 3):
             img = cv2.imread(d["file_name"])
             visualizer = Visualizer(img[:, :, ::-1], metadata=robi_meta, scale=0.5)
@@ -83,7 +92,22 @@ def main():
 
    
 
+def loadPickle(pickle_file):
+    dataset_dicts = pickle.load(pickle_file)
+    if type(dataset_dicts) is not list:
+        raise ValueError("Pickle file does not contain a list")
+    elif type(dataset_dicts[0]) is not dict:
+        raise ValueError("Pickle file does not contain a list of dictionaries")
+    return dataset_dicts
 
+
+
+def registerFromPickle(dataset_dicts):
+    for class_name in ROBI_CLASSES:
+        dataset_name = f"robi_{class_name}_train"
+        print(f"registering dataset {dataset_name}")
+        DatasetCatalog.register(dataset_name,)
+        MetadataCatalog.get(dataset_name).set(thing_classes=ROBI_CLASSES)
 
 def parser_setup(parser):
     parser.add_argument(
