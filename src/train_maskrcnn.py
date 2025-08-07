@@ -93,7 +93,8 @@ def main():
    
 
 def loadPickle(pickle_file):
-    dataset_dicts = pickle.load(pickle_file)
+    with open(pickle_file,'rb') as f:
+        dataset_dicts = pickle.load(f)
     if type(dataset_dicts) is not list:
         raise ValueError("Pickle file does not contain a list")
     elif type(dataset_dicts[0]) is not dict:

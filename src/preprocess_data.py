@@ -21,7 +21,7 @@ def create_serialized_dataset():
         print(f"Loading data for class: {class_name}")
         # Call your robiLoader function to get the data for the current class
         dataset_dicts = robi_loader_detectron.robiLoader(class_name, CLASS_TO_ID[class_name], DataPath)
-        all_datasets_as_dict[{class_name}] = dataset_dicts
+        all_datasets_as_dict[class_name] = dataset_dicts
         print(f"Finished loading {len(dataset_dicts)} samples for class: {class_name}")
 
     # Define the output file path
