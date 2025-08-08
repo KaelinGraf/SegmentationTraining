@@ -50,12 +50,13 @@ def main():
     
     training_datasets = []
     if args.training_class == "all":
-        for data_class in ROBI_CLASSES:
-            print(data_class)
-            single_dataset_to_train = all_datasets[data_class]
-            DatasetCatalog.register(f"robi_{data_class}_train",lambda:single_dataset_to_train)
-            MetadataCatalog.get(f"robi_{data_class}_train").set(thing_classes=ROBI_CLASSES)
-            training_datasets.append(f"robi_{data_class}_train")
+        print("Combining all classes into a single dataset for training.")
+        for class_name in ROBI_CLASSES:
+            training_datasets.extend(all_datasets[class_name])
+        
+        training_dataset_name = "robi_train_all"
+        DatasetCatalog.register(training_dataset_name, lambda: training_datasets)
+        MetadataCatalog.get(training_dataset_name).set(thing_classes=ROBI_CLASSES)
     else:
         single_dataset_to_train = all_datasets[args.training_class]
 
@@ -82,14 +83,17 @@ def main():
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg.SOLVER.AMP.ENABLED = True 
-    cfg.DATASETS.TRAIN = (training_datasets)
+    cfg.DATASETS.TRAIN = (training_dataset_name)
     cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
     cfg.SOLVER.IMS_PER_BATCH = args.batch_size 
     cfg.SOLVER.BASE_LR = args.learning_rate
     cfg.SOLVER.MAX_ITER = args.num_iterations
-    cfg.SOLVER.STEPS = []        # do not decay learning rate
+    cfg.SOLVER.CHECKPOINT_PERIOD = 1000
+    decay_step_1 = int(args.num_iterations * 0.6)
+    decay_step_2 = int(args.num_iterations * 0.8)
+    cfg.SOLVER.STEPS = (decay_step_1, decay_step_2)  
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(ROBI_CLASSES)  # number of classes in the dataset
 
@@ -97,7 +101,7 @@ def main():
     #train
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     trainer = DefaultTrainer(cfg) 
-    trainer.resume_or_load(resume=False)
+    trainer.resume_or_load(resume=True)
     trainer.train()
 
    
@@ -134,7 +138,7 @@ def parser_setup(parser):
     parser.add_argument(
         "--num_iterations",
         type=int,
-        default=1000,
+        default=1000000,
         help="Number of iterations to train"
     )
     parser.add_argument(
@@ -156,7 +160,7 @@ def parser_setup(parser):
     parser.add_argument(
         "--learning_rate",
         type=float,
-        default=0.00025,
+        default=0.00015,
         help="Learning rate for the optimizer"
     )
 
