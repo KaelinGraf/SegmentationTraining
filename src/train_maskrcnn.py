@@ -91,9 +91,8 @@ def main():
     cfg.SOLVER.BASE_LR = args.learning_rate
     cfg.SOLVER.MAX_ITER = args.num_iterations
     cfg.SOLVER.CHECKPOINT_PERIOD = 1000
-    decay_step_1 = int(args.num_iterations * 0.6)
-    decay_step_2 = int(args.num_iterations * 0.8)
-    cfg.SOLVER.STEPS = (decay_step_1, decay_step_2)  
+    cfg.SOLVER.STEPS = tuple(range(50000, args.num_iterations, 50000))
+    cfg.SOLVER.GAMMA = 0.8
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(ROBI_CLASSES)  # number of classes in the dataset
 
